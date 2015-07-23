@@ -573,7 +573,7 @@ class GsxLib
     {
         $result = false;
         $rex = array(
-            'partNumber'            => '/^([A-Z]{1,2})?\d{3}\-?(\d{4}|[A-Z]{2})(\/[A-Z])?$/i',
+            'partNumber'            => '/^([A-Z]{1,2})?\d{3}\-?(\d{4,5}|[A-Z]{2})(\/[A-Z])?$/i',
             'serialNumber'          => '/^[A-Z0-9]{11,12}$/i',
             'eeeCode'               => '/^[A-Z0-9]{3,4}$/',     // only match ALL-CAPS!
             'returnOrder'           => '/^7\d{9}$/',
