@@ -3,6 +3,7 @@
 require_once('simpletest/autorun.php');
 require_once('gsxlib.php');
 
+
 class GsxlibTest extends UnitTestCase
 {
     function setUp() {
@@ -23,10 +24,13 @@ class GsxlibTest extends UnitTestCase
 
     function testCreateCarryInRepair() {
         $symptom = $this->gsx->fetchSymptomIssue($this->sn)->symptoms[0];
+        $symptom_code = $symptom->reportedSymptomCode;
+        $issue = $this->gsx->fetchSymptomIssue(array('reportedSymptomCode' => $symptom_code));
+        $issue_code = $issue->issues[0]->reportedIssueCode;
 
         $repairData = array(
-            'shipTo' => '6191',
             'serialNumber' => $this->sn,
+            'shipTo' => $_ENV['GSX_SHIPTO'],
             'diagnosedByTechId' => 'USA022SN',
             'symptom' => 'Sample symptom',
             'diagnosis' => 'Sample diagnosis',
@@ -34,12 +38,12 @@ class GsxlibTest extends UnitTestCase
             'unitReceivedTime' => '12:40 PM',
             'notes' => 'A sample notes',
             'poNumber' => '11223344',
-            'popFaxed' => false,
+            'popFaxed' => FALSE,
             'orderLines' => array(
-                'partNumber' => '076-1080',
+                'partNumber' => '661-6049',
                 'comptiaCode' => '660',
                 'comptiaModifier' => 'A',
-                'abused' => false
+                'abused' => FALSE
             ),
             'customerAddress' => array(
                 'addressLine1' => 'Address line 1',
@@ -55,8 +59,8 @@ class GsxlibTest extends UnitTestCase
                 'lastName' => 'Customer lastname',
                 'primaryPhone' => '4088887766'
             ),
-            'reportedSymptomCode' => $symptom->reportedSymptomCode,
-            'reportedIssueCode' => 'IP025',
+            'reportedSymptomCode' => $symptom_code,
+            'reportedIssueCode' => $issue_code,
         );
 
         $this->gsx->createCarryinRepair($repairData);
