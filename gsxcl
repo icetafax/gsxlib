@@ -25,11 +25,10 @@ require 'gsxlib.php';
 if( count( $argv ) < 6 ) {
   echo <<<EOT
 
-usage: gsxcl [--debug] -s sold-to -u username -p password [-r region] [-e environment] [-f format] verb noun
+usage: gsxcl [--debug] -s sold-to -u username [-r region] [-e environment] [-f format] verb noun
   --debug         Report all errors
   -s  sold-to     your GSX Sold-To account
   -u  username    the Apple ID with GSX WS API access
-  -p  password    the password for the Apple ID
   -r  region      either "am" (America), "emea" (default, Europe, Middle-East, Africa)
                   "apac" (Asia-Pacific) or "la" (Latin America)
   -e  environment the GSX environment. Either empty (production, default), "it" or "ut"
@@ -74,7 +73,11 @@ switch( $noun )
     }
 }
 
-$gsx = GsxLib::getInstance( $opts['s'], $opts['u'], $opts['p'], $environment, $region );
+if (!$_ENV['GSX_CERT']) {
+  exit("The GSX_CERT environment variable must be set to the path to your GSX client certificate");
+}
+
+$gsx = GsxLib::getInstance( $opts['s'], $opts['u'], $environment, $region );
 
 if( isset( $opts['d'] )) {
   $data = $opts['d'];
