@@ -126,16 +126,15 @@ class GsxLib
                 ->AuthenticateResponse
                 ->userSessionId;
         } catch(SoapFault $e) {
-            print($e);
-            print($this->wsdl);
-            print($this->client->__getLastRequest());
-            print($this->client->__getLastResponse());
-            print($this->client->__getLastResponseHeaders());
+            syslog(LOG_ERR, $e);
+            syslog(LOG_ERR, $this->wsdl);
+            syslog(LOG_ERR, $this->client->__getLastRequest());
+            syslog(LOG_ERR, $this->client->__getLastResponse());
+            syslog(LOG_ERR, $this->client->__getLastResponseHeaders());
 
             if($environment == '') $environment = 'production';
 
-            $error = 'Authentication with GSX failed. Does this account have access to '
-                .$environment."?\n";
+            $error = 'Authentication with GSX failed. Does this account have access to '.$environment."?\n";
             throw new GsxException($error);
 
         }
