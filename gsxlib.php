@@ -13,37 +13,31 @@
  */
 class GsxLib
 {
-    private $client;
-    private $region;
-    private $session_id;
-    private $environment;
+    private $client;        // SoapClient instance
+    private $region;        // GSX region code
+    private $session_id;    // Current GSX SessionID
+    private $environment;   // Current GSX environment
 
-    //IT: https://gsxws%s.apple.com/wsdl/%sAsp/gsx-%sAsp.wsdl
-    //PROD: https://gsxws2.apple.com/wsdl/%sAsp/gsx-%sAsp.wsdl
-    private $wsdl = 'https://gsxws%s.apple.com/wsdl/%sAsp/gsx-%sAsp.wsdl';
+    private $wsdl = 'https://gsxapi%s.apple.com/wsdl/%sAsp/gsx-%sAsp.wsdl';
 
-    static $_instance;
+    static $_instance;      // Reference to GsxLib instance
 
     const timeout = 30;     // session timeout in minutes
 
     public static function getInstance(
-        $account,
+        $sold_to,
         $username,
-        $password,
         $environment = '',
         $region = 'emea',
-        $tz = 'CEST',
-        $lang = 'en')
+        $tz = 'CEST')
     {
         if(!(self::$_instance instanceof self)) {
             self::$_instance = new self(
-                $account,
+                $sold_to,
                 $username,
-                $password,
                 $environment,
                 $region,
-                $tz,
-                $lang
+                $tz
             );
         }
 
@@ -54,20 +48,18 @@ class GsxLib
     private function __clone() {}
 
     private function __construct(
-        $account,
+        $sold_to,
         $username,
-        $password,
         $environment = '',
         $region = 'emea',
-        $tz = 'CEST',
-        $lang = 'en' )
+        $tz = 'CEST' )
     {
         if(!class_exists('SoapClient')) {
             throw new GsxException('Looks like your PHP lacks SOAP support');
         }
 
-        if(!preg_match('/\d+/', $account)) {
-            throw new GsxException('Invalid Sold-To: ' . $account);
+        if(!preg_match('/\d+/', $sold_to)) {
+            throw new GsxException('Invalid Sold-To: ' . $sold_to);
         }
 
         $regions = array('am', 'emea', 'apac', 'la');
@@ -89,31 +81,41 @@ class GsxLib
                 $error = sprintf($error, $environment, implode(', ', $envirs));
                 throw new GsxException($error);
             }
-        } else {
-           // GSX2...
-           $environment = '2';
         }
         
+        $this->cert_path = $_ENV['GSX_CERT'];
+        $this->cert_pass = $_ENV['GSX_KEYPASS'];
+
+        if (!is_readable($this->cert_path)) {
+            throw new GsxException("Cannot read SSL certificate");
+        }
+
         $this->wsdl = sprintf($this->wsdl, $environment, $region, $region);
         
+        $client_options = array(
+            'trace'      => TRUE,
+            'exceptions' => TRUE,
+            'local_cert' => $this->cert_path,
+            'passphrase' => $this->cert_pass,
+        );
+
         $this->client = new SoapClient(
-            $this->wsdl, array('exceptions' => TRUE, 'trace' => 1)
+            $this->wsdl, $client_options
         );
         
         if(!$this->client) {
            throw new GsxException('Failed to create SOAP client.');
         }
         
-        if(@$_SESSION['_gsxlib_timeout'][$account] > time()) {
- //          return $this->session_id = $_SESSION['_gsxlib_id'][$account];
+        if(@$_SESSION['_gsxlib_timeout'][$sold_to] > time()) {
+           // return $this->session_id = $_SESSION['_gsxlib_id'][$sold_to];
         }
         
         $a = array(
             'AuthenticateRequest' => array(
                 'userId'            => $username,
-                'password'          => $password,
-                'serviceAccountNo'  => $account,
-                'languageCode'      => $lang,
+                'serviceAccountNo'  => $sold_to,
+                'languageCode'      => 'en',
                 'userTimeZone'      => $tz,
             )
         );
@@ -124,19 +126,25 @@ class GsxLib
                 ->AuthenticateResponse
                 ->userSessionId;
         } catch(SoapFault $e) {
-            if($environment == '2') $environment = 'production';
+            print($e);
+            print($this->wsdl);
+            print($this->client->__getLastRequest());
+            print($this->client->__getLastResponse());
+            print($this->client->__getLastResponseHeaders());
+
+            if($environment == '') $environment = 'production';
 
             $error = 'Authentication with GSX failed. Does this account have access to '
-                .$environment." environment?\n";
+                .$environment."?\n";
             throw new GsxException($error);
 
         }
         
         // there's a session going, put the credentials in there
         if(session_id()) {
-            $_SESSION['_gsxlib_id'][$account] = $this->session_id;
+            $_SESSION['_gsxlib_id'][$sold_to] = $this->session_id;
             $timeout = time()+(60*self::timeout);
-            $_SESSION['_gsxlib_timeout'][$account] = $timeout;
+            $_SESSION['_gsxlib_timeout'][$sold_to] = $timeout;
         }
 
     }
@@ -181,6 +189,24 @@ class GsxLib
     
     }
     
+    /**
+     * The Reported Symptom/Issue API allows partners to fetch the information related to symptoms and issues.
+     * If all the validations go through, api returns a list of valid symptoms/issues according to the input data. 
+     * Otherwise api returns appropriate error message.
+     * @param mixed $query
+     */
+    public function fetchSymptomIssue($query)
+    {
+        if(!is_array($query)) {
+            $like = self::looksLike($query);
+            $query = array($like => $query);
+        }
+
+        $rd = array('ReportedSymptomIssue' => array('requestData' => $query));
+        return $this->request($rd)->reportedSymptomIssueResponse;
+
+    }
+
     public function fetchiOsActivation($query)
     {
         if(!is_array($query)) {
@@ -277,23 +303,28 @@ class GsxLib
             'unreceivedModules'         => 'N',
         );
 
-        // provide "shortcuts" for dispatch ID and SN
-        switch(self::looksLike($query)) {
-            case 'dispatchId':
-                $query = array('repairConfirmationNumber' => $query);
-                break;
-            case 'serialNumber':
-                $query = array('serialNumber' => $query);
-                break;
-        }
+        if(!is_array($query)) {
+            // provide "shortcuts" for dispatch ID and SN
+            switch(self::looksLike($query)) {
+                case 'dispatchId':
+                    $query = array('repairConfirmationNumber' => $query);
+                    break;
+                case 'serialNumber':
+                    $query = array('serialNumber' => $query);
+                    break;
+            }
 
-        $query = array_merge($fields, $query);
+            $query = array_merge($fields, $query);
+            
+        }
+        
         $req = array( 'RepairLookupRequest' => array(
             'userSession' => array('userSessionId' => $this->session_id),
             'lookupRequestData' => $query 
         ));
 
-        $response = $this->client->RepairLookup($req)->RepairLookupResponse;
+        $response = $this->client->RepairLookup($req)
+            ->RepairLookupResponse;
         return $response->lookupResponseData;
   }
   
@@ -438,7 +469,9 @@ class GsxLib
             
         }
 
-        $req = array('PartsLookup' => array('lookupRequestData' => $query));
+        $req = array('PartsLookup' => array(
+            'lookupRequestData' => $query
+        ));
 
         $result = $this->request($req)->parts;
         // always return an array
