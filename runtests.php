@@ -3,12 +3,30 @@
 require_once('simpletest/autorun.php');
 require_once('gsxlib.php');
 
+error_reporting(E_ALL);
+
 
 class GsxlibTest extends UnitTestCase
 {
     function setUp() {
         $this->sn = $_ENV['GSX_SN'];
         $this->gsx = GsxLib::getInstance($_ENV['GSX_SOLDTO'], $_ENV['GSX_USER'], 'ut');
+        $symptom = $this->gsx->fetchSymptomIssue($this->sn)->symptoms[0];
+        $this->symptom_code = $symptom->reportedSymptomCode;
+        $issue = $this->gsx->fetchSymptomIssue(array(
+            'reportedSymptomCode' => $this->symptom_code
+        ));
+        $this->issue_code = $issue->issues[0]->reportedIssueCode;
+        $this->received_date = date('m/d/y');
+        $this->received_time = date('h:i A');
+        $this->shipto = $_ENV['GSX_SHIPTO'];
+        $this->techid = $_ENV['GSX_TECHID'];
+    }
+
+    function testPartsLookup() {
+        $this->parts = $this->gsx->partsLookup($this->sn);
+        $this->part = $this->parts[12];
+        $this->assertEqual($this->part->partNumber, '661-5787');
     }
 
     function testWarranty() {
@@ -23,19 +41,14 @@ class GsxlibTest extends UnitTestCase
     }
 
     function testCreateCarryInRepair() {
-        $symptom = $this->gsx->fetchSymptomIssue($this->sn)->symptoms[0];
-        $symptom_code = $symptom->reportedSymptomCode;
-        $issue = $this->gsx->fetchSymptomIssue(array('reportedSymptomCode' => $symptom_code));
-        $issue_code = $issue->issues[0]->reportedIssueCode;
-
         $repairData = array(
             'serialNumber' => $this->sn,
-            'shipTo' => $_ENV['GSX_SHIPTO'],
-            'diagnosedByTechId' => 'USA022SN',
+            'shipTo' => $this->shipto,
+            'diagnosedByTechId' => $this->techid,
             'symptom' => 'Sample symptom',
             'diagnosis' => 'Sample diagnosis',
-            'unitReceivedDate' => '07/25/15',
-            'unitReceivedTime' => '12:40 PM',
+            'unitReceivedDate' => $this->received_date,
+            'unitReceivedTime' => $this->received_time,
             'notes' => 'A sample notes',
             'poNumber' => '11223344',
             'popFaxed' => FALSE,
@@ -59,43 +72,45 @@ class GsxlibTest extends UnitTestCase
                 'lastName' => 'Customer lastname',
                 'primaryPhone' => '4088887766'
             ),
-            'reportedSymptomCode' => $symptom_code,
-            'reportedIssueCode' => $issue_code,
+            'reportedSymptomCode' => $this->symptom_code,
+            'reportedIssueCode' => $this->issue_code,
         );
 
         $this->gsx->createCarryinRepair($repairData);
 
     }
 
-    function _testCreateMailInRepair() {
+    function testCreateMailInRepair() {
         $repairData = array(
-            'shipTo' => '6191',
-            'accidentalDamage' => false,
-            'addressCosmeticDamage' => false,
+            'shipTo' => $this->shipto,
+            'accidentalDamage' => FALSE,
+            'addressCosmeticDamage' => FALSE,
             'comptia' => array(
                 'comptiaCode' => 'X01',
                 'comptiaModifier' => 'D',
                 'comptiaGroup' => 1,
                 'technicianNote' => 'sample technician notes'
             ),
-            'requestReviewByApple' => false,
+            'requestReviewByApple' => FALSE,
             'serialNumber' => 'RM6501PXU9C',
-            'diagnosedByTechId' => 'USA022SN',
+            'diagnosedByTechId' => $this->techid,
             'symptom' => 'Sample symptom',
             'diagnosis' => 'Sample diagnosis',
-            'unitReceivedDate' => '07/02/13',
-            'unitReceivedTime' => '12:40 PM',
+            'reportedSymptomCode' => $this->symptom_code,
+            'reportedIssueCode' => $this->issue_code,
+            'unitReceivedDate' => $this->received_date,
+            'unitReceivedTime' => $this->received_time,
             'notes' => 'A sample notes',
             'purchaseOrderNumber' => 'AB12345',
             'trackingNumber' => '12345',
             'shipper' => 'XDHL',
             'soldToContact' => 'Cupertino',
-            'popFaxed' => false,
+            'popFaxed' => FALSE,
             'orderLines' => array(
                 'partNumber' => '076-1080',
                 'comptiaCode' => '660',
                 'comptiaModifier' => 'A',
-                'abused' => false
+                'abused' => FALSE
             ),
             'customerAddress' => array(
                 'addressLine1' => 'Address line 1',
