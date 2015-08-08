@@ -127,14 +127,11 @@ class GsxLib
                 ->userSessionId;
         } catch(SoapFault $e) {
             syslog(LOG_ERR, $e);
-            syslog(LOG_ERR, $this->wsdl);
-            syslog(LOG_ERR, $this->client->__getLastRequest());
-            syslog(LOG_ERR, $this->client->__getLastResponse());
-            syslog(LOG_ERR, $this->client->__getLastResponseHeaders());
 
             if($environment == '') $environment = 'production';
 
-            $error = 'Authentication with GSX failed. Does this account have access to '.$environment."?\n";
+            $error = 'Authentication with GSX failed. Does this account have access to '
+                .$environment."?\n";
             throw new GsxException($error);
 
         }
@@ -189,8 +186,10 @@ class GsxLib
     }
     
     /**
-     * The Reported Symptom/Issue API allows partners to fetch the information related to symptoms and issues.
-     * If all the validations go through, api returns a list of valid symptoms/issues according to the input data. 
+     * The Reported Symptom/Issue API allows partners to fetch the information 
+     * related to symptoms and issues.
+     * If all the validations go through, api returns a list 
+     * of valid symptoms/issues according to the input data. 
      * Otherwise api returns appropriate error message.
      * @param mixed $query
      */
@@ -317,13 +316,12 @@ class GsxLib
             
         }
         
-        $req = array( 'RepairLookupRequest' => array(
+        $req = array('RepairLookupRequest' => array(
             'userSession' => array('userSessionId' => $this->session_id),
             'lookupRequestData' => $query 
         ));
 
-        $response = $this->client->RepairLookup($req)
-            ->RepairLookupResponse;
+        $response = $this->client->RepairLookup($req)->RepairLookupResponse;
         return $response->lookupResponseData;
   }
   
@@ -333,7 +331,7 @@ class GsxLib
     * @param mixed $repairData
     * @return mixed
     */
-    public function partsPendingReturn($repairData = null)
+    public function partsPendingReturn($repairData = NULL)
     {
         $fields = array(
             'repairType'                => 'CA',    // default to Carry In repairs
@@ -450,7 +448,7 @@ class GsxLib
     * @param mixed $query
     * @return [bool|string]
     */
-    public function partsLookup($query = null)
+    public function partsLookup($query = NULL)
     {
         if(is_array($query)) {
             $req = array('PartsLookup' => array(
@@ -508,7 +506,7 @@ class GsxLib
             throw new InvalidArgumentException($error);
         }
 
-        $req = array( 'FetchProductModelRequest' => array(
+        $req = array('FetchProductModelRequest' => array(
             'userSession' => array(
                 'userSessionId' => $this->session_id
             ),
@@ -585,6 +583,11 @@ class GsxLib
         try {
             $result = $this->client->$r($request);
             $resp = "{$r}Response";
+            if (@$_ENV['GSX_DEBUG']) {
+                syslog(LOG_NOTICE, $this->wsdl);
+                syslog(LOG_NOTICE, "REQUEST: \n" . $this->client->__getLastRequest());
+                syslog(LOG_NOTICE, "RESPONSE: \n" . $this->client->__getLastResponse());
+            }
             return $result->$resp;
         } catch(SoapFault $e) {
             throw new GsxException($e->getMessage(), $this->client->__getLastRequest());
@@ -601,7 +604,7 @@ class GsxLib
     * unfortunately, it's no longer the case
     * @param string $string string to check
     */
-    static function looksLike($string, $what = null)
+    static function looksLike($string, $what = NULL)
     {
         $result = false;
         $rex = array(
@@ -630,7 +633,7 @@ class GsxLib
 
 class GsxException extends Exception
 {
-    function __construct($message, $request = null)
+    function __construct($message, $request = NULL)
     {
         $this->request = $request;
         $this->message = $message;
