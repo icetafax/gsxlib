@@ -81,6 +81,8 @@ class GsxLib
                 $error = sprintf($error, $environment, implode(', ', $envirs));
                 throw new GsxException($error);
             }
+        } else {
+            $environment = '';
         }
         
         $this->cert_path = $_ENV['GSX_CERT'];
