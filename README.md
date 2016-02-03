@@ -86,6 +86,18 @@ ensures the certificate is sent with each request and you only have to define th
 A: First, install [simpletest][3], then:
 
     $ GSX_DEBUG=1 GSX_TECHID=123456 GSX_SN=12345678 GSX_SHIPTO=123456 GSX_USER=me@example.com GSX_KEYPASS='MySuperSecretKey' GSX_SOLDTO=123456 GSX_CERT=/path/to/my/cert.chain.pem php runtests.php
+    
+    
+### Q: How can I get Find My iPhone status?
+
+A: Use the following code:
+
+    $warrantylookup = $gsx->warrantyStatus($serialnumber);
+    if (strpos($warrantylookup->activationLockStatus,'Find My iPhone is active') !== false) {
+      $fmid = 1;
+    } else {
+      $fmid = 0;
+    }
 
 
 License
